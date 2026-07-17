@@ -1,7 +1,7 @@
 import sys
 import time
 import argparse
-from spell.fitting_card import solve_incr, mode
+from spell.shacl_fitting import solve_incr, mode
 
 from spell.structures import solution2sparql, structure_from_owl
 
