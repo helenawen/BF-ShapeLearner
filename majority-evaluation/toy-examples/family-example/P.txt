@@ -1,4 +1,0 @@
-http://example.com/family#alice
-http://example.com/family#bob
-http://example.com/family#claire
-http://example.com/family#diana

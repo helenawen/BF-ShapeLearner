@@ -1,2 +1,0 @@
-http://example.org/chemistry#c2
-http://example.org/chemistry#c3
