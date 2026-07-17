@@ -1,2 +1,0 @@
-http://example.com/university#Alice
-http://example.com/university#Bob

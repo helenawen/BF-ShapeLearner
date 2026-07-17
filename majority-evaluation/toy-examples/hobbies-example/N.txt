@@ -1,7 +1,0 @@
-http://example.org/hobbies#Bob
-http://example.org/hobbies#Football
-http://example.org/hobbies#Running
-http://example.org/hobbies#Bouldering
-http://example.org/hobbies#Drawing
-http://example.org/hobbies#Crochet
-http://example.org/hobbies#Painting

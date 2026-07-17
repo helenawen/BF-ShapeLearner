@@ -1,2 +1,0 @@
-http://example.org/hobbies#Alice
-http://example.org/hobbies#Claire
