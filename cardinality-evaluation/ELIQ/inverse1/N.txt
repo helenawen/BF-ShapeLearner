@@ -1,0 +1,2 @@
+http://example.com/pets#pet3
+http://example.com/pets#pet4

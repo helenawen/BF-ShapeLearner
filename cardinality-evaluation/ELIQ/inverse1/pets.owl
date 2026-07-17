@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+<rdf:RDF xmlns="http://example.com/pets#"
+     xml:base="http://example.com/pets"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+
+    <owl:Ontology rdf:about="http://example.com/pets"/>
+
+    <!-- Object Properties -->
+    <owl:ObjectProperty rdf:about="http://example.com/pets#ownsPet"/>
+
+    <!-- Classes -->
+    <owl:Class rdf:about="http://example.com/pets#pet"/>
+    <owl:Class rdf:about="http://example.com/pets#cat">
+        <rdfs:subClassOf rdf:resource="http://example.com/pets#pet"/>
+    </owl:Class>
+    <owl:Class rdf:about="http://example.com/pets#dog">
+        <rdfs:subClassOf rdf:resource="http://example.com/pets#pet"/>
+    </owl:Class>
+
+    <owl:Class rdf:about="http://example.com/pets#person"/>
+    <owl:Class rdf:about="http://example.com/pets#doctor"/>
+
+    <!-- Individuals -->
+
+    <!-- Persons -->
+    <!-- Alice is a Doctor -->
+    <owl:NamedIndividual rdf:about="http://example.com/pets#alice">
+        <rdf:type rdf:resource="http://example.com/pets#doctor"/>
+        <ownsPet rdf:resource="http://example.com/pets#pet1"/>
+    </owl:NamedIndividual>
+
+    <!-- Claire is a Doctor -->
+    <owl:NamedIndividual rdf:about="http://example.com/pets#claire">
+        <rdf:type rdf:resource="http://example.com/pets#doctor"/>
+        <ownsPet rdf:resource="http://example.com/pets#pet2"/>
+    </owl:NamedIndividual>
+
+    <!-- Bob is just a Person -->
+    <owl:NamedIndividual rdf:about="http://example.com/pets#bob">
+        <rdf:type rdf:resource="http://example.com/pets#person"/>
+        <ownsPet rdf:resource="http://example.com/pets#pet3"/>
+        <ownsPet rdf:resource="http://example.com/pets#pet4"/>
+    </owl:NamedIndividual>
+
+
+    <!-- Pets (Individuals we want to classify) -->
+
+    <owl:NamedIndividual rdf:about="http://example.com/pets#pet1">
+        <rdf:type rdf:resource="http://example.com/pets#cat"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.com/pets#pet2">
+        <rdf:type rdf:resource="http://example.com/pets#dog"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.com/pets#pet3">
+        <rdf:type rdf:resource="http://example.com/pets#cat"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.com/pets#pet4">
+        <rdf:type rdf:resource="http://example.com/pets#dog"/>
+    </owl:NamedIndividual>
+
+</rdf:RDF>

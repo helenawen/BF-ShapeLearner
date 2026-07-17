@@ -27,3 +27,6 @@ ELN-pets-geq:
 #toy examples
 ELN-pets-eq:
 	$(SPELL) ELN/toy-examples/pets-eq-example/pets.owl ELN/toy-examples/pets-eq-example/P.txt ELN/toy-examples/pets-eq-example/N.txt
+
+inverse1:
+	$(SPELL) ELIQ/inverse1/pets.owl ELIQ/inverse1/P.txt ELIQ/inverse1/N.txt
