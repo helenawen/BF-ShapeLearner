@@ -30,3 +30,6 @@ ELN-pets-eq:
 
 inverse1:
 	$(SPELL) ELIQ/inverse1/pets.owl ELIQ/inverse1/P.txt ELIQ/inverse1/N.txt
+
+company-inverse:
+	$(SPELL) ELIQ/company/company.owl ELIQ/company/P.txt ELIQ/company/N.txt
