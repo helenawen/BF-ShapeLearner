@@ -87,16 +87,16 @@ def compute_types(A: Structure, sigma: Signature):
     return ind_tp_idx, anti_types
 
 
-def compute_successors(sigma: Signature, A: Structure):
-    succs: dict[RoleAtom, dict[int, set[int]]] = {}
+def compute_role_fillers(sigma: Signature, A: Structure):
+    fillers: dict[RoleAtom, dict[int, set[int]]] = {}
     for rn in rolenames(sigma):
-        succs[rn] = {a: set() for a in ind(A)}
+        fillers[rn] = {a: set() for a in ind(A)}
 
     for a in ind(A):
         for b, rn in A.rn_ext[a]:
             if rn in rolenames(sigma):
-                succs[rn][a].add(b)
-    return succs
+                fillers[rn][a].add(b)
+    return fillers
 
 
 def compute_all_successors_by_individuals(A: Structure):
@@ -108,11 +108,11 @@ def compute_all_successors_by_individuals(A: Structure):
     return succs_of_ind
 
 def compute_n_max(sigma: Signature, A: Structure):
-    succs = compute_successors(sigma, A);
+    fillers = compute_role_fillers(sigma, A);
     max_count = 0
     for rn in rolenames(sigma):
         for a in ind(A):
-            max_count = max(max_count, len(succs[rn][a]))
+            max_count = max(max_count, len(fillers[rn][a]))
     return max_count
 
 # --- CREATE VARIABLES ---
@@ -338,9 +338,9 @@ def number_bound_constraints(size: int, sigma: Signature, v: Variables):
             pass
 
 
-# creates clauses needed for handling correct behaviour of successors.
-# If there exists an edge from i to j, then either (one of) the succesors simulate or a defect must be present
-def successor_constraints(size: int, A: Structure, sigma: Signature, v: Variables):
+# creates clauses needed for handling correct behaviour of role fillers.
+# If there exists an edge from i to j, then either (one of) the role fillers simulate or a defect must be present
+def role_filler_constraints(size: int, A: Structure, sigma: Signature, v: Variables):
     pi = v.pi
     pr = v.pr
     is_ex = v.is_ex
@@ -355,7 +355,7 @@ def successor_constraints(size: int, A: Structure, sigma: Signature, v: Variable
     num_bound = v.num_bound
     n_max = v.n_max
 
-    succs = compute_successors(sigma, A)
+    fillers = compute_role_fillers(sigma, A)
 
     # auxillary variables to link clauses
     link_ex = [[fresh_var() for a in ind(A)] for j in range(size)]
@@ -369,8 +369,8 @@ def successor_constraints(size: int, A: Structure, sigma: Signature, v: Variable
     for a in ind(A):
         for pInd2 in range(size):
             for rn in rolenames(sigma):
-                succ_sim = [simul[pInd2][b] for b in succs[rn][a]]
-                yield [-link_ex[pInd2][a], -pr[rn][pInd2]] + succ_sim  # 9-EX
+                filler_sim = [simul[pInd2][b] for b in fillers[rn][a]]
+                yield [-link_ex[pInd2][a], -pr[rn][pInd2]] + filler_sim  # 9-EX
 
     # Number Restriction
     for a in ind(A):
@@ -455,22 +455,22 @@ def cardinality_constraints(size: int, sigma: Signature, A: Structure, v: Variab
     n_max = v.n_max
     global var_counter
 
-    succs = compute_successors(sigma, A)
+    fillers = compute_role_fillers(sigma, A)
 
     for pInd2 in range(size):
         for a in ind(A):
             for rn in rolenames(sigma):
-                succ_lits = [simul[pInd2][b] for b in succs[rn][a]]
+                filler_lits = [simul[pInd2][b] for b in fillers[rn][a]]
                 for n in range(1, n_max + 1):
                     idx = n - 1
 
                     # cardinalty encoding needed for >= (greater than or equal operator)
-                    if not succ_lits or n > len(succ_lits):
+                    if not filler_lits or n > len(filler_lits):
                         yield [-num_sim_geq[pInd2][a][rn][idx]]
                     else:
-                        # num_sim_geq ->  >=n succesors simulate
+                        # num_sim_geq ->  >=n role fillers simulate
                         num_enc_atleast = CardEnc.atleast(
-                            succ_lits,
+                            filler_lits,
                             bound=n,
                             top_id=var_counter,
                             encoding=EncType.totalizer
@@ -478,9 +478,9 @@ def cardinality_constraints(size: int, sigma: Signature, A: Structure, v: Variab
                         var_counter = num_enc_atleast.nv + 1
                         for c in num_enc_atleast.clauses:
                             yield [-num_sim_geq[pInd2][a][rn][idx]] + list(c)
-                        # >=n succesors simulate -> num_sim_geq true (modeled through contraposition)
+                        # >=n role fillers simulate -> num_sim_geq true (modeled through contraposition)
                         num_enc_atmost = CardEnc.atmost(
-                            succ_lits,
+                            filler_lits,
                             bound=n - 1,
                             top_id=var_counter,
                             encoding=EncType.totalizer
@@ -490,13 +490,13 @@ def cardinality_constraints(size: int, sigma: Signature, A: Structure, v: Variab
                             yield [num_sim_geq[pInd2][a][rn][idx]] + list(c)
 
                     # cardinalty encoding needed for <= (less than or equal operator)
-                    if not succ_lits or len(succ_lits) <= n:
+                    if not filler_lits or len(filler_lits) <= n:
                         yield [num_sim_leq[pInd2][a][rn][idx]]
                         continue
                     else:
-                        # <= n successors simulate -> num_sim_leq true (modeled through contrapostion)
+                        # <= n role fillers simulate -> num_sim_leq true (modeled through contrapostion)
                         num_enc_atleast = CardEnc.atleast(
-                            succ_lits,
+                            filler_lits,
                             bound=n + 1,
                             top_id=var_counter,
                             encoding=EncType.totalizer
@@ -505,9 +505,9 @@ def cardinality_constraints(size: int, sigma: Signature, A: Structure, v: Variab
                         for c in num_enc_atleast.clauses:
                             yield [num_sim_leq[pInd2][a][rn][idx]] + list(c)
 
-                        # num_sim_leq true -> <= n successors simulate
+                        # num_sim_leq true -> <= n role fillers simulate
                         num_enc_atmost = CardEnc.atmost(
-                            succ_lits,
+                            filler_lits,
                             bound=n,
                             top_id=var_counter,
                             encoding=EncType.totalizer
@@ -598,13 +598,15 @@ def sat_encoding_constraints(
 
     #print("DEBUG: All concepts found in A:", list(A.cn_ext.keys()))
     #print("DEBUG: All concepts filtered in Sigma:", list(conceptnames(sigma)))
-    #print("DEBUG: All roles filtered in Sigma:", list(rolenames(sigma)))
+    print("DEBUG: All roles filtered in Sigma:", list(rolenames(sigma)))
+    print("DEBUG: All roles filtered in Sigma:", list(A.rn_ext.keys()))
+
 
     yield from query_structure_constraints(size, sigma, v)
     yield from edge_type_constraints(size, sigma, v)
     yield from defect_type_constraints(size, A, v)
     yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect)
-    yield from successor_constraints(size, A, sigma, v)
+    yield from role_filler_constraints(size, A, sigma, v)
     yield from simulation_mx_defect_constraints(size, sigma, A, v)
     yield from cardinality_constraints(size, sigma, A, v)
     yield from number_bound_constraints(size, sigma, v)
@@ -790,14 +792,14 @@ def model2fitting_query(
                                 n = idx + 1
                                 break
                         if (op_geq[pInd2] in model and op_leq[pInd2] in model):
-                            q.rn_ext[pInd].add((pInd2, RoleAtom(f"  = {n} {rn}")))
+                            q.rn_ext[pInd].add((pInd2, f"  = {n} {rn}"))
                         elif (op_geq[pInd2] in model):
                             if (n == 1):  # >=1 is the same as existential restriction
                                 q.rn_ext[pInd].add((pInd2, rn))
                             else:
-                                q.rn_ext[pInd].add((pInd2, RoleAtom(f" >= {n} {rn}")))
+                                q.rn_ext[pInd].add((pInd2, f" >= {n} {rn}"))
                         elif (op_leq[pInd2] in model):
-                            q.rn_ext[pInd].add((pInd2, RoleAtom(f" <= {n} {rn}")))
+                            q.rn_ext[pInd].add((pInd2, f" <= {n} {rn}"))
                     else:  # corresponds to is_ex
                         q.rn_ext[pInd].add((pInd2, rn))
 

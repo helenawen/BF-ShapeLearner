@@ -33,7 +33,7 @@ namespaces = {
 @dataclass(frozen=True, slots=True)
 class RoleAtom:
     name: str
-    inverse: bool = False
+    inverse: bool = False #r-
 
     def base(self) -> "RoleAtom":
         return RoleAtom(self.name, False)
@@ -50,7 +50,7 @@ Signature = tuple[list[str], list[RoleAtom]]
 class Structure:
     max_ind: int
     cn_ext: dict[str, set[int]]
-    rn_ext: dict[int, set[tuple[int, RoleAtom]]]
+    rn_ext: dict[int, set[tuple[int, RoleAtom | str]]]
     indmap: dict[str, int]
     nsmap: dict[str | None, str]
 
@@ -150,6 +150,7 @@ class ABoxBuilder:
             idx2 = self.map_ind(ind2)
 
         self.A.rn_ext[idx1].add((idx2, RoleAtom(role)))
+        self.A.rn_ext[idx2].add((idx1, RoleAtom(role, True))) #add inverse edge and set inverse flag of role to True
 
 
 tag_onto = expand_namespace("owl", "Ontology")
@@ -640,7 +641,7 @@ def structure_to_dot(A: Structure, indmap: dict[str, int]):
 
     for a in ind(A):
         for b, r in A.rn_ext[a]:
-            r_str = r.name if isinstance(r, RoleAtom) else str(r)
+            r_str = str(r) if isinstance(r, RoleAtom) else str(r)
             if "#" in r_str:
                 r_str = r_str.split("#")[1]
             print('N{} -> N{} [label="{}"];'.format(a, b, r_str))
@@ -659,7 +660,7 @@ def solution2sparql(q: Structure):
             if a in q.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
                 clauses.append("?{} a {} .".format(a, name2sparql(cn)))
         for b, rn in q.rn_ext[a]:
-            rn_str = rn.name if isinstance(rn, RoleAtom) else str(rn)
+            rn_str = str(rn) if isinstance(rn, RoleAtom) else str(rn)
             clauses.append("?{} {} ?{} .".format(a, name2sparql(rn_str), b))
     if len(clauses) == 0:
         clauses.append("?0 a <http://www.w3.org/2002/07/owl#Thing> .")
