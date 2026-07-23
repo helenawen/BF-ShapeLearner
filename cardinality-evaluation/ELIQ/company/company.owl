@@ -26,9 +26,19 @@
     <!-- Individuals -->
 
     <!-- Bob points TO AcmeCorp -->
+    <owl:NamedIndividual rdf:about="http://example.org/Alice">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <worksFor rdf:resource="http://example.org/Company1"/>
+    </owl:NamedIndividual>
+
     <owl:NamedIndividual rdf:about="http://example.org/Bob">
         <rdf:type rdf:resource="http://example.org/Person"/>
         <worksFor rdf:resource="http://example.org/Company1"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/Bob">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <worksFor rdf:resource="http://example.org/Company2"/>
     </owl:NamedIndividual>
 
     <!-- Companies -->
@@ -37,6 +47,10 @@
     </owl:NamedIndividual>
 
     <owl:NamedIndividual rdf:about="http://example.org/Company2">
+        <rdf:type rdf:resource="http://example.org/Company"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/Company3">
         <rdf:type rdf:resource="http://example.org/Company"/>
     </owl:NamedIndividual>
 
