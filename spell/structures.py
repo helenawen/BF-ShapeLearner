@@ -41,6 +41,9 @@ class RoleAtom:
     def inverted(self) -> "RoleAtom":
         return RoleAtom(self.name, not self.inverse)
 
+    def __str__(self):
+        return f"{self.name}-" if self.inverse else self.name
+
     def __repr__(self):
         return f"{self.name}-" if self.inverse else self.name
 
@@ -576,16 +579,18 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
     # Apply range restrictions to ABox
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            if r.name in tbox.ranges.keys():
+            #if r.name in tbox.ranges.keys():
+            if not r.inverse and r.name in tbox.ranges.keys(): #ignore inverse roles for forward range
                 for B in tbox.ranges[r.name]:
                     abox.concept_assertion(b, B)
 
     rev_succs: dict[int, dict[str, set[int]]] = {b: {} for b in ind(abox.A)}
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            if r.name not in rev_succs[b]:
-                rev_succs[b][r.name] = set()
-            rev_succs[b][r.name].add(a)
+            if not r.inverse:
+                if r.name not in rev_succs[b]: #ignore inverse roles for forward successors
+                    rev_succs[b][r.name] = set()
+                rev_succs[b][r.name].add(a)
 
     # Propagate concept names through ABox
     # TODO faster algorithm for ABox saturation
@@ -622,7 +627,7 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
         toadd = set()
         for b, r in abox.A.rn_ext[a]:
             for s in tbox.role_incs[r.name]:
-                toadd.add((b, RoleAtom(s)))
+                toadd.add((b, RoleAtom(s, inverse=r.inverse))) #pass whether role is inverse or not, otherwise info of inverse roles gets lost
         abox.A.rn_ext[a] |= toadd
 
     # Remove fresh concept names from model
