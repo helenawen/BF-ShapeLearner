@@ -34,10 +34,6 @@
     <owl:NamedIndividual rdf:about="http://example.org/Bob">
         <rdf:type rdf:resource="http://example.org/Person"/>
         <worksFor rdf:resource="http://example.org/Company1"/>
-    </owl:NamedIndividual>
-
-    <owl:NamedIndividual rdf:about="http://example.org/Bob">
-        <rdf:type rdf:resource="http://example.org/Person"/>
         <worksFor rdf:resource="http://example.org/Company2"/>
     </owl:NamedIndividual>
 
