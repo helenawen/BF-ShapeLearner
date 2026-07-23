@@ -5,6 +5,7 @@ from pysat.card import CardEnc, EncType
 from pysat.solvers import Glucose4, pysolvers
 
 from .structures import (
+    RoleAtom,
     Signature,
     Structure,
     conceptname_ext,
@@ -18,7 +19,10 @@ from .structures import (
 
 # TODO:
 # Documentation! of final clauses and variables for Cardinality Restrictions
-# adapt N_MAX to max derived from instance, not hard coded 5
+# add inverses r- (whenever I consider successors now, I also need to consider predecessors for inverse roles)
+# add reachability r*
+# add closed (SHACL constraint)
+# output SHACL shape instead of SPARQL query)
 
 
 mode = Enum("mode", "exact neg_approx full_approx")
@@ -26,10 +30,10 @@ mode = Enum("mode", "exact neg_approx full_approx")
 # --- CREATE DATA STRUCTURES AND VARIABLES ---
 HC = dict[str, list[int]]  # [cn][pInd]
 Edge = list[dict[int, int]]  # [i][j] (pi, is_ex, is_num)
-Pr = dict[str, list[int]]  # [rn][pInd]
+Pr = dict[RoleAtom, list[int]]  # [rn][pInd]
 Defect = list[list[list[int]]]  # [i][j][a] (defect, ex_def, num_def)
 Simul = list[list[int]]  # [pInd][a]
-SimulNum = list[list[dict[str, list[int]]]]  # [j][a][rn][n]
+SimulNum = list[list[dict[RoleAtom, list[int]]]]  # [j][a][rn][n]
 NumBound = list[list[int]]
 Op = list[int]
 
@@ -84,7 +88,7 @@ def compute_types(A: Structure, sigma: Signature):
 
 
 def compute_successors(sigma: Signature, A: Structure):
-    succs: dict[str, dict[int, set[int]]] = {}
+    succs: dict[RoleAtom, dict[int, set[int]]] = {}
     for rn in rolenames(sigma):
         succs[rn] = {a: set() for a in ind(A)}
 
@@ -167,7 +171,6 @@ def create_variables(size: int, sigma: Signature, A: Structure) -> Variables:
     defect = [[[fresh_var() for a in ind(A)] for j in range(size)] for i in range(size)]
     ex_def = [[[fresh_var() for a in ind(A)] for j in range(size)] for i in range(size)]
     num_def = [[[fresh_var() for a in ind(A)] for j in range(size)] for i in range(size)]
-
 
     return Variables(pi, pr, hc, is_ex, is_num, simul, num_sim_geq, num_sim_leq, op_geq, op_leq,
                      num_bound, defect, ex_def, num_def, n_max)
@@ -531,7 +534,7 @@ def sibling_role_ordering_constraints(size, sigma, v):
     is_ex = v.is_ex
     is_num = v.is_num
 
-    rns = sorted(rolenames(sigma))  # lexicographic order
+    rns = sorted(rolenames(sigma), key=lambda r: str(r))  # lexicographic order
 
     for parent in range(size):
         for j1 in range(parent + 1, size):
@@ -613,14 +616,14 @@ def sat_encoding_constraints(
 # --- OPTIMIZATION FUNCTIONS ---
 def non_empty_symbols(A: Structure) -> Signature:
     cns = [cn for cn in A.cn_ext.keys() if A.cn_ext[cn]]
-    rns: set[str] = set()
+    rns: set[RoleAtom] = set()
     for a in ind(A):
         for _, rn in A.rn_ext[a]:
             rns.add(rn)
     rns2 = list(rns)
 
     cns.sort(key="{}".format)
-    rns2.sort(key="{}".format)
+    rns2.sort(key=lambda r: str(r))
     return (cns, rns2)
 
 
@@ -638,7 +641,7 @@ def determine_relevant_symbols(
 
     for p in P:
         cns2: set[str] = set()
-        rns2: set[str] = set()
+        rns2: set[RoleAtom] = set()
         for cn in cns:
             if p in A.cn_ext[cn]:
                 cns2.add(cn)
@@ -664,7 +667,7 @@ def determine_relevant_symbols(
 
     rns = list(rn for (rn, c) in countr.items() if c >= minP)
     cns.sort(key="{}".format)
-    rns.sort(key="{}".format)
+    rns.sort(key=lambda r: str(r))
 
     return (cns, rns)
 
@@ -787,14 +790,14 @@ def model2fitting_query(
                                 n = idx + 1
                                 break
                         if (op_geq[pInd2] in model and op_leq[pInd2] in model):
-                            q.rn_ext[pInd].add((pInd2, f"  = {n} {rn}"))
+                            q.rn_ext[pInd].add((pInd2, RoleAtom(f"  = {n} {rn}")))
                         elif (op_geq[pInd2] in model):
                             if (n == 1):  # >=1 is the same as existential restriction
                                 q.rn_ext[pInd].add((pInd2, rn))
                             else:
-                                q.rn_ext[pInd].add((pInd2, f" >= {n} {rn}"))
+                                q.rn_ext[pInd].add((pInd2, RoleAtom(f" >= {n} {rn}")))
                         elif (op_leq[pInd2] in model):
-                            q.rn_ext[pInd].add((pInd2, f" <= {n} {rn}"))
+                            q.rn_ext[pInd].add((pInd2, RoleAtom(f" <= {n} {rn}")))
                     else:  # corresponds to is_ex
                         q.rn_ext[pInd].add((pInd2, rn))
 

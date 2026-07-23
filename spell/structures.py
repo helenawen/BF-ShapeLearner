@@ -29,14 +29,28 @@ namespaces = {
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
 }
 
-Signature = tuple[list[str], list[str]]
+#data class for roles, handling role names and their inverses
+@dataclass(frozen=True, slots=True)
+class RoleAtom:
+    name: str
+    inverse: bool = False
 
+    def base(self) -> "RoleAtom":
+        return RoleAtom(self.name, False)
+
+    def inverted(self) -> "RoleAtom":
+        return RoleAtom(self.name, not self.inverse)
+
+    def __repr__(self):
+        return f"{self.name}-" if self.inverse else self.name
+
+Signature = tuple[list[str], list[RoleAtom]]
 
 @dataclass(slots=True)
 class Structure:
     max_ind: int
     cn_ext: dict[str, set[int]]
-    rn_ext: dict[int, set[tuple[int, str]]]
+    rn_ext: dict[int, set[tuple[int, RoleAtom]]]
     indmap: dict[str, int]
     nsmap: dict[str | None, str]
 
@@ -48,7 +62,7 @@ def conceptnames(sigma: Signature) -> list[str]:
     return sigma[0]
 
 
-def rolenames(sigma: Signature) -> list[str]:
+def rolenames(sigma: Signature) -> list[RoleAtom]:
     return sigma[1]
 
 
@@ -97,10 +111,11 @@ def add_ns(n: str):
 class ABoxBuilder:
     A: Structure
     indmap: dict[str, int]
-    role_names = set()
+    role_names: set[str] = set()
 
     def __init__(self):
         self.indmap = {}
+        self.role_names = set()
         self.A = Structure(max_ind=0, cn_ext={}, rn_ext={}, indmap={}, nsmap={})
 
     def map_ind(self, a: str):
@@ -134,7 +149,7 @@ class ABoxBuilder:
         if not idx2:
             idx2 = self.map_ind(ind2)
 
-        self.A.rn_ext[idx1].add((idx2, role))
+        self.A.rn_ext[idx1].add((idx2, RoleAtom(role)))
 
 
 tag_onto = expand_namespace("owl", "Ontology")
@@ -560,16 +575,16 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
     # Apply range restrictions to ABox
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            if r in tbox.ranges.keys():
-                for B in tbox.ranges[r]:
+            if r.name in tbox.ranges.keys():
+                for B in tbox.ranges[r.name]:
                     abox.concept_assertion(b, B)
 
     rev_succs: dict[int, dict[str, set[int]]] = {b: {} for b in ind(abox.A)}
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            if r not in rev_succs[b]:
-                rev_succs[b][r] = set()
-            rev_succs[b][r].add(a)
+            if r.name not in rev_succs[b]:
+                rev_succs[b][r.name] = set()
+            rev_succs[b][r.name].add(a)
 
     # Propagate concept names through ABox
     # TODO faster algorithm for ABox saturation
@@ -605,8 +620,8 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
     for a in ind(abox.A):
         toadd = set()
         for b, r in abox.A.rn_ext[a]:
-            for s in tbox.role_incs[r]:
-                toadd.add((b, s))
+            for s in tbox.role_incs[r.name]:
+                toadd.add((b, RoleAtom(s)))
         abox.A.rn_ext[a] |= toadd
 
     # Remove fresh concept names from model
@@ -625,9 +640,10 @@ def structure_to_dot(A: Structure, indmap: dict[str, int]):
 
     for a in ind(A):
         for b, r in A.rn_ext[a]:
-            if "#" in r:
-                r = r.split("#")[1]
-            print('N{} -> N{} [label="{}"];'.format(a, b, r))
+            r_str = r.name if isinstance(r, RoleAtom) else str(r)
+            if "#" in r_str:
+                r_str = r_str.split("#")[1]
+            print('N{} -> N{} [label="{}"];'.format(a, b, r_str))
     print("}")
 
 
@@ -643,7 +659,8 @@ def solution2sparql(q: Structure):
             if a in q.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
                 clauses.append("?{} a {} .".format(a, name2sparql(cn)))
         for b, rn in q.rn_ext[a]:
-            clauses.append("?{} {} ?{} .".format(a, name2sparql(rn), b))
+            rn_str = rn.name if isinstance(rn, RoleAtom) else str(rn)
+            clauses.append("?{} {} ?{} .".format(a, name2sparql(rn_str), b))
     if len(clauses) == 0:
         clauses.append("?0 a <http://www.w3.org/2002/07/owl#Thing> .")
 
