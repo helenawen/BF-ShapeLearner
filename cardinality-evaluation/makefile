@@ -33,3 +33,6 @@ inverse1:
 
 company-inverse:
 	$(SPELL) ELIQ/company/company.owl ELIQ/company/P.txt ELIQ/company/N.txt
+
+closed1:
+	$(SPELL) CLOSED/closed1/closed.owl CLOSED/closed1/P.txt CLOSED/closed1/N.txt
