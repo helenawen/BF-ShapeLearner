@@ -20,10 +20,7 @@ from .structures import (
 
 # TODO:
 # Documentation! of final clauses and variables for Cardinality Restrictions
-# add reachability r*
 # add maximize closedness as optimization goal? would this be useful?
-# output SHACL shape instead of SPARQL query)
-
 
 mode = Enum("mode", "exact neg_approx full_approx")
 
