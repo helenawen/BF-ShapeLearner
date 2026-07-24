@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+<rdf:RDF xmlns="http://example.org/"
+     xml:base="http://example.org/"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+
+    <owl:Ontology rdf:about="http://example.org/"/>
+
+    <!-- Object Properties -->
+    <owl:ObjectProperty rdf:about="http://example.org/hasAncestor"/>
+
+    <!-- Classes -->
+    <owl:Class rdf:about="http://example.org/Person"/>
+    <owl:Class rdf:about="http://example.org/Royalty"/>
+
+    <!-- Die königliche Blutlinie -->
+    <owl:NamedIndividual rdf:about="http://example.org/Arthur">
+        <rdf:type rdf:resource="http://example.org/Royalty"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/Charles">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <hasAncestor rdf:resource="http://example.org/Arthur"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/William">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <hasAncestor rdf:resource="http://example.org/Charles"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/George">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <hasAncestor rdf:resource="http://example.org/William"/>
+    </owl:NamedIndividual>
+
+    <!-- Die nicht-königliche Linie -->
+    <owl:NamedIndividual rdf:about="http://example.org/Bob">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+    </owl:NamedIndividual>
+
+    <owl:NamedIndividual rdf:about="http://example.org/Timmy">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <hasAncestor rdf:resource="http://example.org/Bob"/>
+    </owl:NamedIndividual>
+
+</rdf:RDF>

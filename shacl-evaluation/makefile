@@ -39,3 +39,10 @@ closed1:
 
 closed2:
 	$(SPELL) CLOSED/closed2/closed.owl CLOSED/closed2/P.txt CLOSED/closed2/N.txt
+
+closed3:
+	$(SPELL) CLOSED/closed3/closed.owl CLOSED/closed3/P.txt CLOSED/closed3/N.txt
+
+
+stars1:
+	$(SPELL) STARS/stars1/stars.owl STARS/stars1/P.txt STARS/stars1/N.txt
