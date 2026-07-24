@@ -59,8 +59,8 @@
         <rdf:type rdf:resource="http://example.com/pets#person"/>
         <ownsPet rdf:resource="http://example.com/pets#bird3"/>
         <ownsPet rdf:resource="http://example.com/pets#cat1"/>
-        <ownsPet rdf:resource="http://example.com/pets#cat2"/>
         <ownsPet rdf:resource="http://example.com/pets#dog2"/>
+        <ownsPet rdf:resource="http://example.com/pets#dog1"/>
     </owl:NamedIndividual>
 
     <!-- Birds -->
