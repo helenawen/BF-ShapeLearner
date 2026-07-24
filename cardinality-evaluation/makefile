@@ -36,3 +36,6 @@ company-inverse:
 
 closed1:
 	$(SPELL) CLOSED/closed1/closed.owl CLOSED/closed1/P.txt CLOSED/closed1/N.txt
+
+closed2:
+	$(SPELL) CLOSED/closed2/closed.owl CLOSED/closed2/P.txt CLOSED/closed2/N.txt
