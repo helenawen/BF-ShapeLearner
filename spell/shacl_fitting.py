@@ -19,9 +19,8 @@ from .structures import (
 
 # TODO:
 # Documentation! of final clauses and variables for Cardinality Restrictions
-# add inverses r- (whenever I consider successors now, I also need to consider predecessors for inverse roles)
 # add reachability r*
-# add closed (SHACL constraint)
+# add maximize closedness as optimization goal? would this be useful?
 # output SHACL shape instead of SPARQL query)
 
 
@@ -36,7 +35,8 @@ Simul = list[list[int]]  # [pInd][a]
 SimulNum = list[list[dict[RoleAtom, list[int]]]]  # [j][a][rn][n]
 NumBound = list[list[int]]
 Op = list[int]
-
+Closed = list[int] #[pInd]
+ClosedDefect = list[list[int]]
 
 class Variables(NamedTuple):
     # Structure
@@ -58,6 +58,9 @@ class Variables(NamedTuple):
     num_def: Defect
     #bound for cardinality restrictions
     n_max: int
+    #closedness
+    closed: Closed
+    closed_def: ClosedDefect
 
 
 var_counter = 1
@@ -172,8 +175,12 @@ def create_variables(size: int, sigma: Signature, A: Structure) -> Variables:
     ex_def = [[[fresh_var() for a in ind(A)] for j in range(size)] for i in range(size)]
     num_def = [[[fresh_var() for a in ind(A)] for j in range(size)] for i in range(size)]
 
+    #Closedness variables
+    closed = [fresh_var() for pInd in range(size)]
+    closed_def = [[fresh_var() for a in ind(A)] for pInd in range(size)]
+
     return Variables(pi, pr, hc, is_ex, is_num, simul, num_sim_geq, num_sim_leq, op_geq, op_leq,
-                     num_bound, defect, ex_def, num_def, n_max)
+                     num_bound, defect, ex_def, num_def, n_max, closed, closed_def)
 
 
 # --- CREATE CLAUSES NEEDED FOR ENCODING ---
@@ -269,7 +276,7 @@ def defect_type_constraints(size: int, A: Structure, v: Variables):
 
 # creates the clauses needed for correct handling of concept names (Clauses 5,6,7, 8)
 def conceptname_constraints(size: int, A: Structure, hc: HC, ind_tp_idx, anti_types, type_var: list[dict[int, int]],
-                            simul: Simul, defect: Defect):
+                            simul: Simul, defect: Defect, v):
     for pInd in range(size):
         for a in ind(A):
             yield (-simul[pInd][a], type_var[pInd][ind_tp_idx[a]])  # HW: paper (7)
@@ -286,7 +293,8 @@ def conceptname_constraints(size: int, A: Structure, hc: HC, ind_tp_idx, anti_ty
             # In some cases this can be a bottleneck, we could use the type-variables here
             cn_part = [-type_var[pInd][ind_tp_idx[a]]]
             rn_part = [defect[pInd][pInd2][a] for pInd2 in range(pInd + 1, size)]
-            yield [simul[pInd][a]] + cn_part + rn_part  # HW: paper (8)
+            #yield [simul[pInd][a]] + cn_part + rn_part  # HW: paper (8)
+            yield [simul[pInd][a]] + cn_part + rn_part + [v.closed_def[pInd][a]]  # HW: paper (8), extended with defect for closedness
 
 
 def leq_simulation_constraints(size: int, A: Structure, v: Variables, ind_tp_idx, type_var):
@@ -516,6 +524,62 @@ def cardinality_constraints(size: int, sigma: Signature, A: Structure, v: Variab
                         for c in num_enc_atmost.clauses:
                             yield [-num_sim_leq[pInd2][a][rn][idx]] + list(c)
 
+def closed_constraints(size, sigma, A, v):
+    # closed[pInd] ∧ simul[pInd][a]  ->  a has no rn-edge which is not covered
+    pi = v.pi
+    pr = v.pr
+    closed = v.closed
+    simul = v.simul
+    closed_def = v.closed_def
+
+    rns = list(rolenames(sigma))
+    rn_set = set(rns)
+    fillers = compute_role_fillers(sigma, A)  # fillers[rn][a], nur rn in sigma
+
+    # if any indiviauls contains an extra role which is not contained in sigma, then closed is never possible
+    has_extra_role = {
+        a: any(rn not in rn_set for _, rn in A.rn_ext[a])
+        for a in ind(A)
+    }
+
+    for pInd in range(size):
+        for a in ind(A):
+            yield [-closed_def[pInd][a], closed[pInd]] #closed defect only allowed when shape is considered closed (cant have an defect on open shape)
+
+            if has_extra_role[a]:
+                yield [-closed[pInd], -simul[pInd][a]] #if shape is considered close and node has extra role, then closed is not possible, so no simulation
+                continue
+
+            uncovered = []
+            for rn in rns:
+                if not fillers[rn][a]:
+                    continue #no role-fillers availaable for node a, skip
+
+                covers = []
+                for j in range(pInd + 1, size):
+                    z = fresh_var()
+                    #helper clauses: z is true IFF there exists a child node j which is connected via rn-role (so rn is covered)
+                    yield [-z, pi[pInd][j]]
+                    yield [-z, pr[rn][j]]
+                    yield [-pi[pInd][j], -pr[rn][j], z]
+                    covers.append(z) #add all helpers for all covered roles
+
+                # if shape is considered close, and a simulates, than all roles of a must be covered
+                yield [-closed[pInd], -simul[pInd][a]] + covers
+
+                # closedness defect handling
+                # uncovered_role new helper variable, which is true if a role is uncovered (no child nodes (no z) cover role rn)
+                uncovered_role = fresh_var()
+                for z in covers:
+                    yield [-uncovered_role, -z]
+                uncovered.append(uncovered_role) #collect all uncovered roles
+
+            # trigger defect, if at least one role is uncovered
+            if uncovered:
+                yield [-closed_def[pInd][a]] + uncovered #if close defect is true, then at least one role must be uncovered
+            else:
+                yield [-closed_def[pInd][a]] #if all roles covered, closed defect must be false
+
 def monotonicity_constraints(size, A, sigma, v):
     # Enforce monotonicity of numerical simulations
     for j in range(size):
@@ -599,17 +663,18 @@ def sat_encoding_constraints(
     #print("DEBUG: All concepts found in A:", list(A.cn_ext.keys()))
     #print("DEBUG: All concepts filtered in Sigma:", list(conceptnames(sigma)))
     print("DEBUG: All roles filtered in Sigma:", list(rolenames(sigma)))
-    print("DEBUG: All roles filtered in Sigma:", list(A.rn_ext.keys()))
+    #print("DEBUG: All roles filtered in Sigma:", list(A.rn_ext.keys()))
 
 
     yield from query_structure_constraints(size, sigma, v)
     yield from edge_type_constraints(size, sigma, v)
     yield from defect_type_constraints(size, A, v)
-    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect)
+    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect, v)
     yield from role_filler_constraints(size, A, sigma, v)
     yield from simulation_mx_defect_constraints(size, sigma, A, v)
     yield from cardinality_constraints(size, sigma, A, v)
     yield from number_bound_constraints(size, sigma, v)
+    yield from closed_constraints(size, sigma, A, v)
     #ENCODING OPTIMIZATION
     yield from sibling_role_ordering_constraints(size, sigma, v)
     yield from concept_ordering_on_sibling_leaves(size, sigma, v)
@@ -769,6 +834,7 @@ def model2fitting_query(
     num_sim_leq = mapping.num_sim_leq
     op_geq = mapping.op_geq
     op_leq = mapping.op_leq
+    closed = mapping.closed
 
     q = Structure(
         max_ind=size,
@@ -778,7 +844,12 @@ def model2fitting_query(
         nsmap={},
     )
 
+    q.cn_ext["closed"] = set()
+
     for pInd in range(size):
+        if closed[pInd] in model:
+            q.cn_ext["closed"].add(pInd)
+
         for cn in conceptnames(sigma):
             if hc[cn][pInd] in model:
                 q.cn_ext[cn].add(pInd)
