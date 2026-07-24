@@ -34,18 +34,24 @@ namespaces = {
 class RoleAtom:
     name: str
     inverse: bool = False #r-
+    star: bool = False #r*
 
     def base(self) -> "RoleAtom":
-        return RoleAtom(self.name, False)
+        return RoleAtom(self.name, False, False)
 
     def inverted(self) -> "RoleAtom":
-        return RoleAtom(self.name, not self.inverse)
+        return RoleAtom(self.name, not self.inverse, self.star)
 
     def __str__(self):
-        return f"{self.name}-" if self.inverse else self.name
+        suffix = ""
+        if self.inverse:
+            suffix += "-"
+        if self.star:
+            suffix += "*"
+        return f"{self.name}{suffix}"
 
     def __repr__(self):
-        return f"{self.name}-" if self.inverse else self.name
+        return self.__str__()
 
 Signature = tuple[list[str], list[RoleAtom]]
 
@@ -672,10 +678,10 @@ def solution2sparql(q: Structure):
     return "SELECT DISTINCT ?0 WHERE {{\n {}\n}}".format("\n ".join(clauses))
 
 
-#handle role direction (forward / inverse) and caridnality
+# handle role direction (forward / inverse), reachability (star) and cardinality
 def parse_role_and_cardinality(rn):
     if isinstance(rn, RoleAtom):
-        return rn.name, rn.inverse, None, None
+        return rn.name, rn.inverse, rn.star, None, None
 
     rn_str = str(rn)
     if " >= " in rn_str or " <= " in rn_str or "  = " in rn_str:
@@ -685,7 +691,14 @@ def parse_role_and_cardinality(rn):
         count = int(parts[1])
         role_name = " ".join(parts[2:])
         is_inverse = False
+        is_star = False
 
+        #check star property of role, and remove*
+        if role_name.endswith("*"):
+            is_star = True
+            role_name = role_name[:-1]
+
+        #check inverse property of role, and remove-
         if role_name.endswith("-"):
             is_inverse = True
             role_name = role_name[:-1]
@@ -693,9 +706,9 @@ def parse_role_and_cardinality(rn):
         min_c = count if ("=" in operator and "<" not in operator) or ">=" in operator else None
         max_c = count if ("=" in operator and ">" not in operator) or "<=" in operator else None
 
-        return role_name, is_inverse, min_c, max_c
+        return role_name, is_inverse, is_star, min_c, max_c
 
-    return rn_str, False, None, None
+    return rn_str, False, False, None, None
 
 #recursive function to generate constraints
 def generate_node_constraints(shape: Structure, node_id: int, indent: str) -> list[str]:
@@ -712,13 +725,15 @@ def generate_node_constraints(shape: Structure, node_id: int, indent: str) -> li
             lines.append(f"{indent}sh:property [")
             prop_indent = indent + "    "
 
-            path, is_inverse, min_c, max_c = parse_role_and_cardinality(rn)
+            path, is_inverse, is_star, min_c, max_c = parse_role_and_cardinality(rn)
 
             # paths and inverses
+            path_str = f"<{path}>"
             if is_inverse:
-                lines.append(f"{prop_indent}sh:path [ sh:inversePath <{path}> ] ;")
-            else:
-                lines.append(f"{prop_indent}sh:path <{path}> ;")
+                path_str = f"[ sh:inversePath {path_str} ]"
+            if is_star:
+                path_str = f"[ sh:zeroOrMorePath {path_str} ]"
+            lines.append(f"{prop_indent}sh:path {path_str} ;")
 
             # cardinalities
             if min_c is not None:
@@ -782,21 +797,74 @@ def solution2shacl(shape: Structure, shape_name: str = "TargetShape") -> str:
 
     return "\n".join(lines)
 
+#computes reflexive-transitive closure (r*) for all roles of node a
+#closure is added as virtual edge (star=True) added to A.rn_ext
+#uses BFS to compute the closure
+def compute_star_edges_for_node(A: Structure, node_id: int, computed_stars: set, all_forward_roles: set):
+
+    # compute closure for all known roles in the graph, not just local ones!
+    for r_name in all_forward_roles:
+        if (node_id, r_name) in computed_stars:
+            continue
+        computed_stars.add((node_id, r_name))
+
+        # create virtual star roles
+        forward_star_role = RoleAtom(r_name, inverse=False, star=True)
+        inverse_star_role = RoleAtom(r_name, inverse=True, star=True)
+
+        # add a self loop (reflexive closure) on BOTH sides - every node gets this!
+        A.rn_ext[node_id].add((node_id, forward_star_role))
+        A.rn_ext[node_id].add((node_id, inverse_star_role))
+
+        # add all nodes reachable via role r from a (transitive closure)
+        visited = set()
+        queue = [node_id]
+        while queue:
+            curr = queue.pop(0)
+            if curr not in visited:
+                visited.add(curr)
+
+                # add the virtual edge (star=True)
+                if curr != node_id: # skip self loops
+                    A.rn_ext[node_id].add((curr, forward_star_role))
+                    A.rn_ext[curr].add((node_id, inverse_star_role))
+
+                # check for new nodes reached via role r from a
+                for next_node, next_role in A.rn_ext[curr]:
+                    if isinstance(next_role, RoleAtom):
+                        if next_role.name == r_name and not next_role.inverse and not next_role.star:
+                            if next_node not in visited:
+                                queue.append(next_node)
 
 # Returns A restricted to individuals that can be reached in k steps from a
 # Renames individuals
 def restrict_to_neighborhood(k: int, A: Structure, starts: list[int]):
     cns = [cn for cn in A.cn_ext.keys() if A.cn_ext[cn]]
 
+    #collect all forward roles of whole structure for self loops
+    all_forward_roles = set()
+    for a in ind(A):
+        for _, rn in A.rn_ext[a]:
+            if isinstance(rn, RoleAtom) and not rn.inverse and not rn.star:
+                all_forward_roles.add(rn.name)
+
     # This has its own distance calculation to avoid computing the distance
     # for the entirety of A
     inds = set(starts)
     dist = {a: 0 for a in starts}
+
+    computed_stars = set()
+
     for r in range(k):
         step = set()
         for i1 in inds:
-            for i2, rn in A.rn_ext[i1]:
+
+            #pre-compute reflexive-transitive closure for node i1
+            compute_star_edges_for_node(A, i1, computed_stars, all_forward_roles)
+
+            for i2, rn in list(A.rn_ext[i1]):
                 step.add(i2)
+
         inds = inds.union(step)
         for i in step:
             if i in dist:
