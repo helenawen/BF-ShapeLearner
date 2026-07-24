@@ -670,7 +670,7 @@ def sat_encoding_constraints(
     yield from query_structure_constraints(size, sigma, v)
     yield from edge_type_constraints(size, sigma, v)
     yield from defect_type_constraints(size, A, v)
-    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect)
+    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect, v)
     yield from role_filler_constraints(size, A, sigma, v)
     yield from simulation_mx_defect_constraints(size, sigma, A, v)
     yield from cardinality_constraints(size, sigma, A, v)
@@ -891,6 +891,7 @@ def model2shape(
     num_bound = mapping.num_bound
     op_geq = mapping.op_geq
     op_leq = mapping.op_leq
+    closed = mapping.closed
 
     shape = Structure(
         max_ind=size,
@@ -900,7 +901,12 @@ def model2shape(
         nsmap={},
     )
 
+    shape.cn_ext["closed"] = set()
+
     for pInd in range(size):
+        if closed[pInd] in model:
+            shape.cn_ext["closed"].add(pInd)
+
         for cn in conceptnames(sigma):
             if hc[cn][pInd] in model:
                 shape.cn_ext[cn].add(pInd)
@@ -1087,7 +1093,7 @@ def solve_incr(
     time_start = time.process_time()
     i = 1
     best_coverage = len(P)
-    best_shape = Structure(max_ind=1, cn_ext={}, rn_ext={0: set()}, indmap={}, nsmap={})
+    best_q = Structure(max_ind=1, cn_ext={}, rn_ext={0: set()}, indmap={}, nsmap={})
     dt = time.process_time() - time_start
     while (
             best_coverage < len(P) + len(N)
@@ -1102,7 +1108,7 @@ def solve_incr(
         else:
             sol = solve(i, A, P, N, best_coverage + 1, False, 0.75, timeout - dt)
         if sol is not None:
-            best_coverage, best_shape,  target_reached = sol
+            best_coverage, best_q,  target_reached = sol
 
             if target_reached:
                 break
@@ -1114,5 +1120,5 @@ def solve_incr(
         "== Best query found with coverage {}/{}".format(best_coverage, len(P) + len(N))
     )
     #print(solution2sparql(best_q))
-    print(solution2shacl(best_shape))
-    return (best_coverage, best_shape)
+    print(solution2shacl(best_q))
+    return (best_coverage, best_q)
