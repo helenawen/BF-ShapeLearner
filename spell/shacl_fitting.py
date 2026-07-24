@@ -15,6 +15,7 @@ from .structures import (
     restrict_to_neighborhood,
     rolenames,
     solution2sparql,
+    solution2shacl,
 )
 
 # TODO:
@@ -662,14 +663,14 @@ def sat_encoding_constraints(
 
     #print("DEBUG: All concepts found in A:", list(A.cn_ext.keys()))
     #print("DEBUG: All concepts filtered in Sigma:", list(conceptnames(sigma)))
-    print("DEBUG: All roles filtered in Sigma:", list(rolenames(sigma)))
+    #print("DEBUG: All roles filtered in Sigma:", list(rolenames(sigma)))
     #print("DEBUG: All roles filtered in Sigma:", list(A.rn_ext.keys()))
 
 
     yield from query_structure_constraints(size, sigma, v)
     yield from edge_type_constraints(size, sigma, v)
     yield from defect_type_constraints(size, A, v)
-    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect, v)
+    yield from conceptname_constraints(size, A, hc, ind_tp_idx, anti_types, type_var, simul, defect)
     yield from role_filler_constraints(size, A, sigma, v)
     yield from simulation_mx_defect_constraints(size, sigma, A, v)
     yield from cardinality_constraints(size, sigma, A, v)
@@ -877,6 +878,56 @@ def model2fitting_query(
     return q
 
 
+# Converts a SAT model to a SHACL shape
+# similar to model2fitting_query but returns a SHACL shape
+def model2shape(
+        size: int, sigma: Signature, mapping: Variables, model: set[int]
+) -> Structure:
+    pi = mapping.pi
+    pr = mapping.pr
+    hc = mapping.hc
+    is_ex = mapping.is_ex
+    is_num = mapping.is_num
+    num_bound = mapping.num_bound
+    op_geq = mapping.op_geq
+    op_leq = mapping.op_leq
+
+    shape = Structure(
+        max_ind=size,
+        cn_ext={cn: set() for cn in conceptnames(sigma)},
+        rn_ext={a: set() for a in range(size)},
+        indmap={},
+        nsmap={},
+    )
+
+    for pInd in range(size):
+        for cn in conceptnames(sigma):
+            if hc[cn][pInd] in model:
+                shape.cn_ext[cn].add(pInd)
+        for pInd2 in range(pInd + 1, size):
+            for rn in rolenames(sigma):
+                if pi[pInd][pInd2] in model and pr[rn][pInd2] in model:
+                    if is_num[pInd][pInd2] in model:
+                        n = None
+                        for idx, var in enumerate(num_bound[pInd2]):
+                            if var in model:
+                                n = idx + 1
+                                break
+                        if (op_geq[pInd2] in model and op_leq[pInd2] in model):
+                            shape.rn_ext[pInd].add((pInd2, f"  = {n} {rn}"))
+                        elif (op_geq[pInd2] in model):
+                            if (n == 1):  # >=1 is the same as existential restriction
+                                shape.rn_ext[pInd].add((pInd2, rn))
+                            else:
+                                shape.rn_ext[pInd].add((pInd2, f" >= {n} {rn}"))
+                        elif (op_leq[pInd2] in model):
+                            shape.rn_ext[pInd].add((pInd2, f" <= {n} {rn}"))
+                    else:  # corresponds to is_ex
+                        shape.rn_ext[pInd].add((pInd2, rn))
+
+    return shape
+
+
 def create_coverage_formula(
         P: list[int], N: list[int], coverage: int, mapping: Variables, all_pos: bool
 ) -> list[list[int]]:
@@ -990,9 +1041,15 @@ def solve(
 
             model = minimize_concept_assertions(size, sigma, g, mapping, model)
 
-        best_q = model2fitting_query(size, sigma, mapping, model)
-        best_sol = (coverage_lb, best_q, False)
-        print(solution2sparql(best_q))
+        #SPARQL fitting query
+        #best_q = model2fitting_query(size, sigma, mapping, model)
+        #best_sol = (coverage_lb, best_q, False)
+        #print(solution2sparql(best_q))
+
+        #SHACL fitting shape
+        best_shape = model2shape(size, sigma, mapping, model)
+        best_sol = (coverage_lb, best_shape, False)
+        print(solution2shacl(best_shape))
 
         print(
             "== Coverage: {}/{} == Accuracy: {}".format(
@@ -1030,7 +1087,7 @@ def solve_incr(
     time_start = time.process_time()
     i = 1
     best_coverage = len(P)
-    best_q = Structure(max_ind=1, cn_ext={}, rn_ext={0: set()}, indmap={}, nsmap={})
+    best_shape = Structure(max_ind=1, cn_ext={}, rn_ext={0: set()}, indmap={}, nsmap={})
     dt = time.process_time() - time_start
     while (
             best_coverage < len(P) + len(N)
@@ -1045,7 +1102,7 @@ def solve_incr(
         else:
             sol = solve(i, A, P, N, best_coverage + 1, False, 0.75, timeout - dt)
         if sol is not None:
-            best_coverage, best_q,  target_reached = sol
+            best_coverage, best_shape,  target_reached = sol
 
             if target_reached:
                 break
@@ -1056,5 +1113,6 @@ def solve_incr(
     print(
         "== Best query found with coverage {}/{}".format(best_coverage, len(P) + len(N))
     )
-    print(solution2sparql(best_q))
-    return (best_coverage, best_q)
+    #print(solution2sparql(best_q))
+    print(solution2shacl(best_shape))
+    return (best_coverage, best_shape)

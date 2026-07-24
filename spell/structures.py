@@ -579,18 +579,16 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
     # Apply range restrictions to ABox
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            #if r.name in tbox.ranges.keys():
-            if not r.inverse and r.name in tbox.ranges.keys(): #ignore inverse roles for forward range
+            if r.name in tbox.ranges.keys():
                 for B in tbox.ranges[r.name]:
                     abox.concept_assertion(b, B)
 
     rev_succs: dict[int, dict[str, set[int]]] = {b: {} for b in ind(abox.A)}
     for a in ind(abox.A):
         for b, r in abox.A.rn_ext[a]:
-            if not r.inverse:
-                if r.name not in rev_succs[b]: #ignore inverse roles for forward successors
-                    rev_succs[b][r.name] = set()
-                rev_succs[b][r.name].add(a)
+            if r.name not in rev_succs[b]:
+                rev_succs[b][r.name] = set()
+            rev_succs[b][r.name].add(a)
 
     # Propagate concept names through ABox
     # TODO faster algorithm for ABox saturation
@@ -627,7 +625,7 @@ def compact_canonical_model(abox: ABoxBuilder, tbox: TBox):
         toadd = set()
         for b, r in abox.A.rn_ext[a]:
             for s in tbox.role_incs[r.name]:
-                toadd.add((b, RoleAtom(s, inverse=r.inverse))) #pass whether role is inverse or not, otherwise info of inverse roles gets lost
+                toadd.add((b, RoleAtom(s)))
         abox.A.rn_ext[a] |= toadd
 
     # Remove fresh concept names from model
@@ -671,6 +669,202 @@ def solution2sparql(q: Structure):
         clauses.append("?0 a <http://www.w3.org/2002/07/owl#Thing> .")
 
     return "SELECT DISTINCT ?0 WHERE {{\n {}\n}}".format("\n ".join(clauses))
+
+
+#Converts a structure (=best shape from shacl fitting, representing a SHACL shape) to SHACL syntax
+def solution2shacl(shape: Structure, shape_name: str = "TargetShape") -> str:
+    lines: list[str] = []
+
+    # Prefixes
+    #lines.append("@prefix sh: <http://www.w3.org/ns/shacl#> .")
+    #lines.append("@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .")
+    #lines.append("@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .")
+    #lines.append("@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .")
+    #lines.append("")
+
+    # Start shape definition
+    lines.append(f":{shape_name}")
+    lines.append("    a sh:NodeShape ;")
+
+    # Process node 0 (root) - add class constraints
+    root_classes = []
+    for cn in shape.cn_ext.keys():
+        if 0 in shape.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
+            root_classes.append(cn)
+
+    if root_classes:
+        for cn in root_classes:
+            lines.append(f"    sh:class <{cn}> ;")
+
+    # Process property constraints from node 0
+    if 0 in shape.rn_ext:
+        for target_node, rn in shape.rn_ext[0]:
+            lines.append("    sh:property [")
+
+            # Determine the property path
+            if isinstance(rn, RoleAtom):
+                if rn.inverse:
+                    # Inverse property path
+                    lines.append(f"        sh:path [ sh:inversePath <{rn.name}> ] ;")
+                else:
+                    lines.append(f"        sh:path <{rn.name}> ;")
+            else:
+                # Handle cardinality restrictions (stored as strings)
+                rn_str = str(rn)
+                if " >= " in rn_str or " <= " in rn_str or "  = " in rn_str:
+                    # Parse cardinality string
+                    parts = rn_str.split()
+                    operator = parts[0] if len(parts) > 0 else ""
+
+                    if "=" in operator and ">" not in operator and "<" not in operator:
+                        # Exact cardinality (=)
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        # Check if role is inverse
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"        sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"        sh:path <{role_name}> ;")
+                        lines.append(f"        sh:minCount {count} ;")
+                        lines.append(f"        sh:maxCount {count} ;")
+                    elif ">=" in operator:
+                        # Minimum cardinality
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"        sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"        sh:path <{role_name}> ;")
+                        lines.append(f"        sh:minCount {count} ;")
+                    elif "<=" in operator:
+                        # Maximum cardinality
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"        sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"        sh:path <{role_name}> ;")
+                        lines.append(f"        sh:maxCount {count} ;")
+                else:
+                    lines.append(f"        sh:path <{rn_str}> ;")
+
+            # Add class constraints for the target node
+            target_classes = []
+            for cn in shape.cn_ext.keys():
+                if target_node in shape.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
+                    target_classes.append(cn)
+
+            if target_classes:
+                for cn in target_classes:
+                    lines.append(f"        sh:class <{cn}> ;")
+
+            # Add nested property shapes if target node has outgoing edges
+            if target_node in shape.rn_ext and len(shape.rn_ext[target_node]) > 0:
+                # Recursively add nested shapes
+                lines.append("        sh:node [")
+                lines = _add_nested_shape(shape, target_node, lines, indent="            ")
+                lines.append("        ] ;")
+
+            # Remove trailing semicolon from last property
+            if lines[-1].endswith(" ;"):
+                lines[-1] = lines[-1][:-2]
+
+            lines.append("    ] ;")
+
+    # Remove trailing semicolon and add period
+    if lines[-1].endswith(" ;"):
+        lines[-1] = lines[-1][:-2] + " ."
+    else:
+        lines[-1] = lines[-1] + " ."
+
+    return "\n".join(lines)
+
+
+def _add_nested_shape(shape: Structure, node_id: int, lines: list[str], indent: str = "    ") -> list[str]:
+    """Helper function to recursively add nested property shapes."""
+
+    # Add class constraints for this node
+    node_classes = []
+    for cn in shape.cn_ext.keys():
+        if node_id in shape.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
+            node_classes.append(cn)
+
+    if node_classes:
+        for cn in node_classes:
+            lines.append(f"{indent}sh:class <{cn}> ;")
+
+    # Add property constraints
+    if node_id in shape.rn_ext:
+        for target_node, rn in shape.rn_ext[node_id]:
+            lines.append(f"{indent}sh:property [")
+
+            # Determine the property path
+            if isinstance(rn, RoleAtom):
+                if rn.inverse:
+                    lines.append(f"{indent}    sh:path [ sh:inversePath <{rn.name}> ] ;")
+                else:
+                    lines.append(f"{indent}    sh:path <{rn.name}> ;")
+            else:
+                rn_str = str(rn)
+                if " >= " in rn_str or " <= " in rn_str or "  = " in rn_str:
+                    parts = rn_str.split()
+                    operator = parts[0] if len(parts) > 0 else ""
+
+                    if "=" in operator and ">" not in operator and "<" not in operator:
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"{indent}    sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"{indent}    sh:path <{role_name}> ;")
+                        lines.append(f"{indent}    sh:minCount {count} ;")
+                        lines.append(f"{indent}    sh:maxCount {count} ;")
+                    elif ">=" in operator:
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"{indent}    sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"{indent}    sh:path <{role_name}> ;")
+                        lines.append(f"{indent}    sh:minCount {count} ;")
+                    elif "<=" in operator:
+                        count = int(parts[1])
+                        role_name = " ".join(parts[2:])
+                        if role_name.endswith("-"):
+                            role_name = role_name[:-1]
+                            lines.append(f"{indent}    sh:path [ sh:inversePath <{role_name}> ] ;")
+                        else:
+                            lines.append(f"{indent}    sh:path <{role_name}> ;")
+                        lines.append(f"{indent}    sh:maxCount {count} ;")
+                else:
+                    lines.append(f"{indent}    sh:path <{rn_str}> ;")
+
+            # Add class constraints for the target
+            target_classes = []
+            for cn in shape.cn_ext.keys():
+                if target_node in shape.cn_ext[cn] and not_owl_thing(name2sparql(cn)):
+                    target_classes.append(cn)
+
+            if target_classes:
+                for cn in target_classes:
+                    lines.append(f"{indent}    sh:class <{cn}> ;")
+
+            # Remove trailing semicolon
+            if lines[-1].endswith(" ;"):
+                lines[-1] = lines[-1][:-2]
+
+            lines.append(f"{indent}] ;")
+
+    # Remove trailing semicolon
+    if lines[-1].endswith(" ;"):
+        lines[-1] = lines[-1][:-2]
+
+    return lines
 
 
 # Returns A restricted to individuals that can be reached in k steps from a
