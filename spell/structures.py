@@ -4,7 +4,7 @@
 # 2. replacing every D in E with U_DO results in E_0
 # Thus: E -> E_O
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import functools
 from typing import Any
 
@@ -62,6 +62,9 @@ class Structure:
     rn_ext: dict[int, set[tuple[int, RoleAtom | str]]]
     indmap: dict[str, int]
     nsmap: dict[str | None, str]
+    eq_ext: dict[int, set[tuple[RoleAtom, RoleAtom]]] = field(default_factory=dict)
+    disj_ext: dict[int, set[tuple[RoleAtom, RoleAtom]]] = field(default_factory=dict)
+
 
 def ind(A: Structure) -> range:
     return range(A.max_ind)
@@ -762,6 +765,20 @@ def generate_node_constraints(shape: Structure, node_id: int, indent: str) -> li
             # end block with ;
             if lines[-1].endswith(" ;"):
                 lines[-1] = lines[-1][:-2]
+            lines.append(f"{indent}] ;")
+
+    if hasattr(shape, 'eq_ext') and node_id in shape.eq_ext:
+        for r1, r2 in shape.eq_ext[node_id]:
+            lines.append(f"{indent}sh:property [")
+            lines.append(f"{indent}    sh:path <{r1}> ;")
+            lines.append(f"{indent}    sh:equals <{r2}> ;")
+            lines.append(f"{indent}] ;")
+
+    if hasattr(shape, 'disj_ext') and node_id in shape.disj_ext:
+        for r1, r2 in shape.disj_ext[node_id]:
+            lines.append(f"{indent}sh:property [")
+            lines.append(f"{indent}    sh:path <{r1}> ;")
+            lines.append(f"{indent}    sh:disjoint <{r2}> ;")
             lines.append(f"{indent}] ;")
 
     return lines

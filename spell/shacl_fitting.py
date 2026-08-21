@@ -59,7 +59,10 @@ class Variables(NamedTuple):
     #closedness
     closed: Closed
     closed_def: ClosedDefect
-
+    #property pair constraints (equality, and disjointness)
+    is_eq: list[dict]
+    is_disj: list[dict]
+    prop_pair_def: list[list[int]]
 
 var_counter = 1
 
@@ -177,8 +180,13 @@ def create_variables(size: int, sigma: Signature, A: Structure) -> Variables:
     closed = [fresh_var() for pInd in range(size)]
     closed_def = [[fresh_var() for a in ind(A)] for pInd in range(size)]
 
+    # property pair constraints variables
+    is_eq = [{r1: {r2: fresh_var() for r2 in list(rolenames(sigma)) if str(r1) < str(r2)} for r1 in list(rolenames(sigma))} for j in range(size)]
+    is_disj = [{r1: {r2: fresh_var() for r2 in list(rolenames(sigma)) if str(r1) < str(r2)} for r1 in list(rolenames(sigma))} for j in range(size)]
+    pair_def = [[fresh_var() for a in ind(A)] for j in range(size)]
+
     return Variables(pi, pr, hc, is_ex, is_num, simul, num_sim_geq, num_sim_leq, op_geq, op_leq,
-                     num_bound, defect, ex_def, num_def, n_max, closed, closed_def)
+                     num_bound, defect, ex_def, num_def, n_max, closed, closed_def, is_eq, is_disj, pair_def)
 
 
 # --- CREATE CLAUSES NEEDED FOR ENCODING ---
@@ -292,8 +300,7 @@ def conceptname_constraints(size: int, A: Structure, hc: HC, ind_tp_idx, anti_ty
             cn_part = [-type_var[pInd][ind_tp_idx[a]]]
             rn_part = [defect[pInd][pInd2][a] for pInd2 in range(pInd + 1, size)]
             #yield [simul[pInd][a]] + cn_part + rn_part  # HW: paper (8)
-            yield [simul[pInd][a]] + cn_part + rn_part + [v.closed_def[pInd][a]]  # HW: paper (8), extended with defect for closedness
-
+            yield [simul[pInd][a]] + cn_part + rn_part + [v.closed_def[pInd][a], v.prop_pair_def[pInd][a]]  # HW: paper (8), extended with defect for closedness and for property pairs
 
 def leq_simulation_constraints(size: int, A: Structure, v: Variables, ind_tp_idx, type_var):
     op_leq = v.op_leq
@@ -578,6 +585,37 @@ def closed_constraints(size, sigma, A, v):
             else:
                 yield [-closed_def[pInd][a]] #if all roles covered, closed defect must be false
 
+#property pair constraints, precompute equality and disjointness for nodes
+def property_pair_constraints(size: int, sigma: Signature, A: Structure, v: Variables):
+    fillers = compute_role_fillers(sigma, A)
+    rns = list(rolenames(sigma))
+
+    for pInd in range(size):
+        for a in ind(A):
+            violations = []
+
+            for r1 in rns:
+                for r2 in rns:
+                    if str(r1) < str(r2):
+                        # precalculate on graph statically, when equality and disjointness (don't) apply
+                        fails_eq = (fillers[r1][a] != fillers[r2][a])
+                        fails_disj = not fillers[r1][a].isdisjoint(fillers[r2][a])
+
+                        # add structural clauses, when equality and disjointness (don't) apply
+                        if fails_eq:
+                            yield [-v.is_eq[pInd][r1][r2], -v.simul[pInd][a]]
+                            violations.append(v.is_eq[pInd][r1][r2])
+
+                        if fails_disj:
+                            yield [-v.is_disj[pInd][r1][r2], -v.simul[pInd][a]]
+                            violations.append(v.is_disj[pInd][r1][r2])
+
+            # add defects for equality and disjointness violations
+            if violations:
+                yield [-v.prop_pair_def[pInd][a]] + violations
+            else:
+                yield [-v.prop_pair_def[pInd][a]]
+
 def monotonicity_constraints(size, A, sigma, v):
     # Enforce monotonicity of numerical simulations
     for j in range(size):
@@ -673,6 +711,7 @@ def sat_encoding_constraints(
     yield from cardinality_constraints(size, sigma, A, v)
     yield from number_bound_constraints(size, sigma, v)
     yield from closed_constraints(size, sigma, A, v)
+    yield from property_pair_constraints(size, sigma, A, v)
     #ENCODING OPTIMIZATION
     yield from sibling_role_ordering_constraints(size, sigma, v)
     yield from concept_ordering_on_sibling_leaves(size, sigma, v)
@@ -889,6 +928,8 @@ def model2shape(
     op_geq = mapping.op_geq
     op_leq = mapping.op_leq
     closed = mapping.closed
+    is_eq = mapping.is_eq
+    is_disj = mapping.is_disj
 
     shape = Structure(
         max_ind=size,
@@ -896,17 +937,32 @@ def model2shape(
         rn_ext={a: set() for a in range(size)},
         indmap={},
         nsmap={},
+        eq_ext = {},
+        disj_ext = {}
     )
 
+    #collect closedness, equality, disjointness properties of nodes, if they apply (= occur in model)
     shape.cn_ext["closed"] = set()
+    shape.eq_ext = {a: set() for a in range(size)}
+    shape.disj_ext = {a: set() for a in range(size)}
 
     for pInd in range(size):
+        #closedness
         if closed[pInd] in model:
             shape.cn_ext["closed"].add(pInd)
-
+        #property pair assertions
+        for r1 in rolenames(sigma):
+            for r2 in rolenames(sigma):
+                if str(r1) < str(r2):
+                    if is_eq[pInd][r1][r2] in model:
+                        shape.eq_ext[pInd].add((r1, r2))
+                    if is_disj[pInd][r1][r2] in model:
+                        shape.disj_ext[pInd].add((r1, r2))
+        #concept names
         for cn in conceptnames(sigma):
             if hc[cn][pInd] in model:
                 shape.cn_ext[cn].add(pInd)
+        #path properties (existential, <=, >=)
         for pInd2 in range(pInd + 1, size):
             for rn in rolenames(sigma):
                 if pi[pInd][pInd2] in model and pr[rn][pInd2] in model:
@@ -988,7 +1044,7 @@ def solve(
         # If we want to cover at least min_coverage examples, we have to cover at least min_pos positive examples
         min_pos = max(coverage_lb - len(N), 1)
     # Use symbols that occur in distance k - 1 of at least min_pos positive example
-    sigma = determine_relevant_symbols(A, P, min_pos, size - 1)
+    sigma = determine_relevant_symbols(A, P, min_pos, max(1, size - 1))
 
     mapping = create_variables(size, sigma, A)
 
