@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+         xmlns="http://example.org/tree#"
+         xml:base="http://example.org/tree#">
+
+  <owl:Ontology rdf:about="http://example.org/tree#">
+    <rdfs:comment>Ontology representing a hierarchical tree with nodes colored A0 and A1, extended to depth 3 (n1->...->n3->branches).</rdfs:comment>
+  </owl:Ontology>
+
+  <owl:Class rdf:about="#Node"/>
+  <owl:Class rdf:about="#A0"/>
+  <owl:Class rdf:about="#A1"/>
+
+  <owl:ObjectProperty rdf:about="#hasChild">
+    <rdfs:domain rdf:resource="#Node"/>
+    <rdfs:range rdf:resource="#Node"/>
+  </owl:ObjectProperty>
+
+  <Node rdf:about="#n1">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#n2"/>
+  </Node>
+
+  <Node rdf:about="#n2">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#n3"/>
+  </Node>
+
+  <Node rdf:about="#n3">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#n4"/>
+    <hasChild rdf:resource="#n5"/>
+    <hasChild rdf:resource="#n6"/>
+  </Node>
+  <Node rdf:about="#n4"><rdf:type rdf:resource="#A0"/></Node>
+  <Node rdf:about="#n5"><rdf:type rdf:resource="#A0"/></Node>
+  <Node rdf:about="#n6"><rdf:type rdf:resource="#A1"/></Node>
+
+  <Node rdf:about="#m1">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#m2"/>
+  </Node>
+
+  <Node rdf:about="#m2">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#m3"/>
+  </Node>
+
+  <Node rdf:about="#m3">
+    <rdf:type rdf:resource="#A0"/>
+    <hasChild rdf:resource="#m4"/>
+    <hasChild rdf:resource="#m5"/>
+    <hasChild rdf:resource="#m6"/>
+  </Node>
+  <Node rdf:about="#m4"><rdf:type rdf:resource="#A0"/></Node>
+  <Node rdf:about="#m5"><rdf:type rdf:resource="#A1"/></Node>
+  <Node rdf:about="#m6"><rdf:type rdf:resource="#A1"/></Node>
+</rdf:RDF>

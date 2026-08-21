@@ -1,98 +1,100 @@
 <?xml version="1.0"?>
 
 <!DOCTYPE rdf:RDF [
-    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
-    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
-    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
-    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+	<!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+	<!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+	<!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+	<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
 ]>
 
 <rdf:RDF xmlns="http://example.org/"
-     xml:base="http://example.org/"
-     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-     xmlns:owl="http://www.w3.org/2002/07/owl#"
-     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
-     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+	 xml:base="http://example.org/"
+	 xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+	 xmlns:owl="http://www.w3.org/2002/07/owl#"
+	 xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+	 xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
 
-    <owl:Ontology rdf:about="http://example.org/"/>
+	<owl:Ontology rdf:about="http://example.org/"/>
 
-    <!-- Object Properties -->
-    <owl:ObjectProperty rdf:about="http://example.org/worksFor"/>
-    <owl:ObjectProperty rdf:about="http://example.org/hasRole"/>
-    <owl:ObjectProperty rdf:about="http://example.org/hasCar"/>
-    <owl:ObjectProperty rdf:about="http://example.org/hasHobby"/>
+	<!-- Object Properties -->
+	<owl:ObjectProperty rdf:about="http://example.org/worksFor"/>
+	<owl:ObjectProperty rdf:about="http://example.org/hasRole"/>
+	<owl:ObjectProperty rdf:about="http://example.org/hasCar"/>
+	<owl:ObjectProperty rdf:about="http://example.org/hasHobby"/>
+	<owl:ObjectProperty rdf:about="http://example.org/hasPet"/>
 
-    <!-- Classes -->
-    <owl:Class rdf:about="http://example.org/Person"/>
-    <owl:Class rdf:about="http://example.org/Company"/>
-    <owl:Class rdf:about="http://example.org/JobRole"/>
+	<!-- Classes -->
+	<owl:Class rdf:about="http://example.org/Person"/>
+	<owl:Class rdf:about="http://example.org/Company"/>
+	<owl:Class rdf:about="http://example.org/JobRole"/>
 
-    <!-- ========================== -->
-    <!-- POSITIVE EXAMPLES          -->
-    <!-- ========================== -->
+	<!-- ========================== -->
+	<!-- POSITIVE EXAMPLES          -->
+	<!-- ========================== -->
 
-    <!-- Alice ONLY has worksFor and hasRole -->
-    <owl:NamedIndividual rdf:about="http://example.org/Alice">
-        <rdf:type rdf:resource="http://example.org/Person"/>
-        <worksFor rdf:resource="http://example.org/AcmeCorp"/>
-        <worksFor rdf:resource="http://example.org/Company1"/>
-        <hasRole rdf:resource="http://example.org/Developer"/>
-    </owl:NamedIndividual>
+	<!-- Alice ONLY has worksFor and hasRole -->
+	<owl:NamedIndividual rdf:about="http://example.org/Alice">
+		<rdf:type rdf:resource="http://example.org/Person"/>
+		<worksFor rdf:resource="http://example.org/AcmeCorp"/>
+		<worksFor rdf:resource="http://example.org/Company1"/>
+		<hasRole rdf:resource="http://example.org/Developer"/>
+	</owl:NamedIndividual>
 
-    <!-- Bob ONLY has worksFor and hasRole -->
-    <owl:NamedIndividual rdf:about="http://example.org/Bob">
-        <rdf:type rdf:resource="http://example.org/Person"/>
-        <worksFor rdf:resource="http://example.org/AcmeCorp"/>
-        <hasRole rdf:resource="http://example.org/Manager"/>
-    </owl:NamedIndividual>
+	<!-- Bob ONLY has worksFor and hasRole -->
+	<owl:NamedIndividual rdf:about="http://example.org/Bob">
+		<rdf:type rdf:resource="http://example.org/Person"/>
+		<worksFor rdf:resource="http://example.org/AcmeCorp"/>
+		<hasRole rdf:resource="http://example.org/Manager"/>
+	</owl:NamedIndividual>
 
-    <!-- ========================== -->
-    <!-- NEGATIVE EXAMPLES          -->
-    <!-- ========================== -->
+	<!-- ========================== -->
+	<!-- NEGATIVE EXAMPLES          -->
+	<!-- ========================== -->
 
-    <!-- Charlie has worksFor, hasRole, AND hasCar (Extra Rule Violation) -->
-    <owl:NamedIndividual rdf:about="http://example.org/Charlie">
-        <rdf:type rdf:resource="http://example.org/Person"/>
-        <worksFor rdf:resource="http://example.org/AcmeCorp"/>
-        <hasRole rdf:resource="http://example.org/Developer"/>
-        <hasCar rdf:resource="http://example.org/Batmobile"/>
-    </owl:NamedIndividual>
+	<!-- Charlie has worksFor, hasRole, AND hasCar (Extra Rule Violation) -->
+	<owl:NamedIndividual rdf:about="http://example.org/Charlie">
+		<rdf:type rdf:resource="http://example.org/Person"/>
+		<worksFor rdf:resource="http://example.org/AcmeCorp"/>
+		<hasRole rdf:resource="http://example.org/Developer"/>
+		<hasCar rdf:resource="http://example.org/Batmobile"/>
+	</owl:NamedIndividual>
 
-    <!-- Dave has worksFor, hasRole, AND hasHobby (Extra Rule Violation) -->
-    <owl:NamedIndividual rdf:about="http://example.org/Dave">
-        <rdf:type rdf:resource="http://example.org/Person"/>
-        <worksFor rdf:resource="http://example.org/AcmeCorp"/>
-        <hasRole rdf:resource="http://example.org/Manager"/>
-        <hasHobby rdf:resource="http://example.org/Chess"/>
-    </owl:NamedIndividual>
+	<!-- Dave has worksFor, hasRole, AND hasHobby (Extra Rule Violation) -->
+	<owl:NamedIndividual rdf:about="http://example.org/Dave">
+		<rdf:type rdf:resource="http://example.org/Person"/>
+		<worksFor rdf:resource="http://example.org/AcmeCorp"/>
+		<hasRole rdf:resource="http://example.org/Manager"/>
+		<hasHobby rdf:resource="http://example.org/Chess"/>
+	</owl:NamedIndividual>
 
-    <owl:NamedIndividual rdf:about="http://example.org/Ella">
-        <rdf:type rdf:resource="http://example.org/Person"/>
-        <hasRole rdf:resource="http://example.org/Manager"/>
-        <worksFor rdf:resource="http://example.org/Company1"/>
-    </owl:NamedIndividual>
+	<owl:NamedIndividual rdf:about="http://example.org/Ella">
+		<rdf:type rdf:resource="http://example.org/Person"/>
+		<hasRole rdf:resource="http://example.org/Manager"/>
+		<worksFor rdf:resource="http://example.org/Company1"/>
+		<hasPet rdf:resource="http://example.org/Dog"/>
+	</owl:NamedIndividual>
 
-    <!-- ========================== -->
-    <!-- TARGET INDIVIDUALS         -->
-    <!-- ========================== -->
+	<!-- ========================== -->
+	<!-- TARGET INDIVIDUALS         -->
+	<!-- ========================== -->
 
-    <owl:NamedIndividual rdf:about="http://example.org/AcmeCorp">
-        <rdf:type rdf:resource="http://example.org/Company"/>
-    </owl:NamedIndividual>
+	<owl:NamedIndividual rdf:about="http://example.org/AcmeCorp">
+		<rdf:type rdf:resource="http://example.org/Company"/>
+	</owl:NamedIndividual>
 
-   	<owl:NamedIndividual rdf:about="http://example.org/Company1">
-        <rdf:type rdf:resource="http://example.org/Company"/>
-    </owl:NamedIndividual>
+	<owl:NamedIndividual rdf:about="http://example.org/Company1">
+		<rdf:type rdf:resource="http://example.org/Company"/>
+	</owl:NamedIndividual>
 
-    <owl:NamedIndividual rdf:about="http://example.org/Developer">
-        <rdf:type rdf:resource="http://example.org/JobRole"/>
-    </owl:NamedIndividual>
+	<owl:NamedIndividual rdf:about="http://example.org/Developer">
+		<rdf:type rdf:resource="http://example.org/JobRole"/>
+	</owl:NamedIndividual>
 
-    <owl:NamedIndividual rdf:about="http://example.org/Manager">
-        <rdf:type rdf:resource="http://example.org/JobRole"/>
-    </owl:NamedIndividual>
+	<owl:NamedIndividual rdf:about="http://example.org/Manager">
+		<rdf:type rdf:resource="http://example.org/JobRole"/>
+	</owl:NamedIndividual>
 
-    <owl:NamedIndividual rdf:about="http://example.org/Batmobile"/>
-    <owl:NamedIndividual rdf:about="http://example.org/Chess"/>
-
+	<owl:NamedIndividual rdf:about="http://example.org/Batmobile"/>
+	<owl:NamedIndividual rdf:about="http://example.org/Chess"/>
+	<owl:NamedIndividual rdf:about="http://example.org/Dog"/>
 </rdf:RDF>

@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE rdf:RDF [
+    <!ENTITY owl "http://www.w3.org/2002/07/owl#" >
+    <!ENTITY xsd "http://www.w3.org/2001/XMLSchema#" >
+    <!ENTITY rdfs "http://www.w3.org/2000/01/rdf-schema#" >
+    <!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#" >
+]>
+
+<rdf:RDF xmlns="http://example.org/"
+     xml:base="http://example.org/"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+
+    <owl:Ontology rdf:about="http://example.org/"/>
+
+    <!-- Object Properties -->
+    <owl:ObjectProperty rdf:about="http://example.org/worksWith"/>
+    <owl:ObjectProperty rdf:about="http://example.org/likes"/>
+
+    <!-- Classes -->
+    <owl:Class rdf:about="http://example.org/Person"/>
+
+    <!-- Positive Example: Alice (works with and likes the exact same people) -->
+    <owl:NamedIndividual rdf:about="http://example.org/Alice">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <worksWith rdf:resource="http://example.org/Charlie"/>
+        <worksWith rdf:resource="http://example.org/David"/>
+        <likes rdf:resource="http://example.org/Charlie"/>
+        <likes rdf:resource="http://example.org/David"/>
+    </owl:NamedIndividual>
+
+    <!-- Negative Example: Bob (works with Frank, but likes Greg instead) -->
+    <owl:NamedIndividual rdf:about="http://example.org/Bob">
+        <rdf:type rdf:resource="http://example.org/Person"/>
+        <worksWith rdf:resource="http://example.org/Eve"/>
+        <worksWith rdf:resource="http://example.org/Frank"/>
+        <likes rdf:resource="http://example.org/Eve"/>
+        <likes rdf:resource="http://example.org/Greg"/>
+    </owl:NamedIndividual>
+
+    <!-- Successors -->
+    <owl:NamedIndividual rdf:about="http://example.org/Charlie"><rdf:type rdf:resource="http://example.org/Person"/></owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://example.org/David"><rdf:type rdf:resource="http://example.org/Person"/></owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://example.org/Eve"><rdf:type rdf:resource="http://example.org/Person"/></owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://example.org/Frank"><rdf:type rdf:resource="http://example.org/Person"/></owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://example.org/Greg"><rdf:type rdf:resource="http://example.org/Person"/></owl:NamedIndividual>
+
+</rdf:RDF>
