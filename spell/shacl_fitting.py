@@ -300,6 +300,7 @@ def conceptname_constraints(size: int, A: Structure, hc: HC, ind_tp_idx, anti_ty
             cn_part = [-type_var[pInd][ind_tp_idx[a]]]
             rn_part = [defect[pInd][pInd2][a] for pInd2 in range(pInd + 1, size)]
             #yield [simul[pInd][a]] + cn_part + rn_part  # HW: paper (8)
+            #yield [simul[pInd][a]] + cn_part + rn_part + [v.closed_def[pInd][a]] # HW: paper (8), extended with defect for closedness
             yield [simul[pInd][a]] + cn_part + rn_part + [v.closed_def[pInd][a], v.prop_pair_def[pInd][a]]  # HW: paper (8), extended with defect for closedness and for property pairs
 
 def leq_simulation_constraints(size: int, A: Structure, v: Variables, ind_tp_idx, type_var):
@@ -542,10 +543,18 @@ def closed_constraints(size, sigma, A, v):
     fillers = compute_role_fillers(sigma, A)  # fillers[rn][a], nur rn in sigma
 
     # if any indiviauls contains an extra role which is not contained in sigma, then closed is never possible
+    #ignore virtual added roles (-,*), else every node has a ghost r* role, for reflexive closure
     has_extra_role = {
-        a: any(rn not in rn_set for _, rn in A.rn_ext[a])
+        a: any(
+            (not getattr(rn, 'inverse', False) and not getattr(rn, 'star', False))
+            and rn not in rn_set
+            for _, rn in A.rn_ext[a]
+        )
         for a in ind(A)
     }
+
+    #only require coverage for actual forward, base roles; no virtual roles
+    base_rns = [rn for rn in rns if not getattr(rn, 'inverse', False) and not getattr(rn, 'star', False)]
 
     for pInd in range(size):
         for a in ind(A):
@@ -556,7 +565,7 @@ def closed_constraints(size, sigma, A, v):
                 continue
 
             uncovered = []
-            for rn in rns:
+            for rn in base_rns:
                 if not fillers[rn][a]:
                     continue #no role-fillers availaable for node a, skip
 
